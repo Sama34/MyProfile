@@ -118,7 +118,7 @@ class MyProfileComments {
 15=15
 25=25
 30=30");
-		$db->update_query("settings", $update_array, "name='mpcommentsperpage'", "1");
+		$db->update_query("settings", $update_array, "name='mpcommentsperpage'", 1);
 		rebuild_settings();
 	}
 	
@@ -162,9 +162,9 @@ class MyProfileComments {
         }
 		
 		/* giving "manage" access to administrators, and delete own comments */
-		$db->update_query("usergroups", array("canmanagecomments" => "1", "candeleteowncomments" => "1"), "gid='4'");
+		$db->update_query("usergroups", array("canmanagecomments" => 1, "candeleteowncomments" => 1), "gid='4'");
 		/* revoking commenting + editing access from guests, banned and awaiting activation users */
-		$db->update_query("usergroups", array("cansendcomments" => "0", "caneditowncomments" => "0"), "gid IN ('1', '5', '7')");
+		$db->update_query("usergroups", array("cansendcomments" => 0, "caneditowncomments" => 0), "gid IN ('1', '5', '7')");
 		
 		$cache->update_usergroups();
 		
@@ -957,13 +957,13 @@ if(use_xmlhttprequest == "1")
 			/* load our templates */
 			$templatelist .= ",myprofile_comments_content,myprofile_comments_stats,myprofile_comments_form,myprofile_comments_form_modoptions,myprofile_comments_form_script,myprofile_comments_form_status,myprofile_comments_table,myprofile_comments_comment,myprofile_comments_no_comment,myprofile_comments_comment_approve,myprofile_comments_comment_reply,myprofile_comments_comment_edit,myprofile_comments_comment_delete,myprofile_comments_comment_report,multipage_page_current,multipage_page,multipage_nextpage,multipage,codebuttons";
 			/* if we are in member.php, and there is logged in user, or the user is viewing own profile */
-			if(isset($mybb->user["uid"], $mybb->input["uid"], $mybb->input["action"]) && $mybb->input["action"] == "profile" && $mybb->user["uid"] > 0 && $mybb->input["uid"] == $mybb->user["uid"]) {
+			if($mybb->get_input('action') == 'profile' && $mybb->user["uid"] && $mybb->get_input('uid', 1) == $mybb->user["uid"]) {
 				/* if the user has no new comments, why reset? */
 				if($mybb->user["mpnewcomments"] != "0") {
 					$update_array = array(
-						"mpnewcomments" => "0"
+						"mpnewcomments" => 0
 					);
-					$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", "1");
+					$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", 1);
 					/* be kind and update the user? */
 					$mybb->user["mpnewcomments"] = "0";
 				}
@@ -991,23 +991,22 @@ if(use_xmlhttprequest == "1")
 			}
 		}
 	}
-	
-	
+
 	public function xmlhttp() {
 		global $mybb, $settings;
 		/* are we providing a string action ? */
-		if(! isset($mybb->input["action"]) || ! is_string($mybb->input["action"])) {
+		if(!$mybb->get_input('action')) {
 			return;
 		}
-		if($mybb->input["action"] == "comments-do-edit") {
+		if($mybb->get_input('action') == "comments-do-edit") {
 			$this->xmlhttp_comments_do_edit();
 			return;
 		}
-		elseif($mybb->input["action"] == "comments-dismiss") {
+		elseif($mybb->get_input('action') == "comments-dismiss") {
 			$this->xmlhttp_comments_dismiss();
 			return;
 		}
-		elseif($mybb->input["action"] == "comments-delete-all") {
+		elseif($mybb->get_input('action') == "comments-delete-all") {
 			$this->xmlhttp_comments_delete_all();
 			return;
 		}
@@ -1016,7 +1015,7 @@ if(use_xmlhttprequest == "1")
 			/* bad admin :( */
 			return;
 		}
-		switch($mybb->input["action"]) {
+		switch($mybb->get_input('action')) {
 			case "comments-retrieve":
 				$this->xmlhttp_comments_retrieve();
 			break;
@@ -1041,14 +1040,14 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* do we have a valid post key? */
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key')), true)) {
 			return;
 		}
 		if($mybb->user["uid"] > 0 && $mybb->user["mpnewcomments"] > "0") {
 			$update_array = array(
-				"mpnewcomments" => "0"
+				"mpnewcomments" => 0
 			);
-			$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", "1");
+			$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", 1);
 			echo "1";
 		}
 	}
@@ -1060,7 +1059,7 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* do we have a valid post key? */
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
 		
@@ -1070,16 +1069,20 @@ if(use_xmlhttprequest == "1")
 		$result->error = false;
 		$result->error_message = "";
 		
-		if(! isset($mybb->input["memberuid"]) || ! is_numeric($mybb->input["memberuid"]) || $mybb->input["memberuid"] <= 0) {
+		$memberuid = $mybb->get_input('memberuid', 1);
+		if($memberuid < 1) {
 			$result->error = true;
 			$result->error_message = $lang->mp_profile_comments_invalid_user;
 			MyProfileUtils::output_json($result);
 		}
 		
-		$memberuid = (int) $mybb->input["memberuid"];
 		$memprofile = get_user($memberuid);
-		
-		$page = isset($mybb->input["page"]) && is_numeric($mybb->input["page"]) && $mybb->input["page"] >= 1 ? (int) $mybb->input["page"] : 1;
+
+		$page = $mybb->get_input('page', 1);
+		if(!$page || $page < 1)
+		{
+			$page = 1;
+		}
 		// math PRO :D
 		$limit_start = ($page - 1) * $settings["mpcommentsperpage"];
 		
@@ -1095,9 +1098,9 @@ if(use_xmlhttprequest == "1")
 		/* wait, is the user requesting comments for own profile? then maybe dismiss any notifications he's got */
 		if($mybb->user["uid"] > 0 && $memprofile["uid"] == $mybb->user["uid"]) {
 			$update_array = array(
-				"mpnewcomments" => "0"
+				"mpnewcomments" => 0
 			);
-			$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", "1");
+			$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", 1);
 			$mybb->user["mpnewcomments"] = "0";
 		}
 		
@@ -1174,16 +1177,16 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key ? */
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
 		/* have we provided all the necessary fields ? With the appropriate types ? */
-		if(! isset($mybb->input["message"], $mybb->input["memberuid"])
-			|| ! is_string($mybb->input["message"]) || ! is_numeric($mybb->input["memberuid"])) {
+		$message = $mybb->get_input('message');
+		$memberuid = $mybb->get_input('memberuid', 1);
+		if(!$message || !$memberuid) {
 			return;
 		}
 		MyProfileUtils::lang_load_myprofile();
-		$memberuid = (int) $mybb->input["memberuid"];
 		$memprofile = get_user($memberuid);
 		
 		$result = new stdClass();
@@ -1195,10 +1198,13 @@ if(use_xmlhttprequest == "1")
 			$result->error = true;
 			MyProfileUtils::output_json($result);
 		}
-		
-		$message = $mybb->input["message"];
+
 		/* is the comment private? is the sneaky user trying to set it to private while the private status is globally disabled? */
-		$isprivate = isset($mybb->input["isprivate"]) && in_array($mybb->input["isprivate"], array("0", "1")) && $settings["mpcommentsstatusenabled"] == "1" ? (int) $mybb->input["isprivate"] : 0;
+		$isprivate = $mybb->get_input('isprivate', 1);
+		if(!in_array($isprivate, array(0, 1)) || !$settings["mpcommentsstatusenabled"])
+		{
+			$isprivate = 0;
+		}
 		/* are we respecting the comment lengths? */
 		if(my_strlen(trim($message)) < $settings["mpcommentsminlength"] || my_strlen($message) > $settings["mpcommentsmaxlength"]) {
 			$result->error = true;
@@ -1218,21 +1224,20 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key ? */
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
 		/* have we provided all the necessary fields ? With the appropriate types ? */
-		if(! isset($mybb->input["message"], $mybb->input["memberuid"], $mybb->input["cid"])
-			|| ! is_string($mybb->input["message"]) || ! is_numeric($mybb->input["memberuid"]) || ! is_numeric($mybb->input["cid"])) {
+		$message = $mybb->get_input('message');
+		$memberuid = $mybb->get_input('memberuid', 1);
+		$cid = $mybb->get_input('cid', 1);
+		if(!$message || !$memberuid || !$cid) {
 			return;
 		}
 		MyProfileUtils::lang_load_myprofile();
-		$memberuid = (int) $mybb->input["memberuid"];
 		$memprofile = get_user($memberuid);
-		
-		$cid = (int) $mybb->input["cid"];
+
 		$comment = $this->comment_retrieve_from_db($cid, $memprofile);
-		$message = $mybb->input["message"];
 		
 		$result = new stdClass();
 		$result->error = false;
@@ -1243,7 +1248,11 @@ if(use_xmlhttprequest == "1")
 			$result->error_message = $lang->mp_comments_cannot_edit_comment;
 			MyProfileUtils::output_json($result);
 		}
-		$isprivate = isset($mybb->input["isprivate"]) && in_array($mybb->input["isprivate"], array("0", "1")) && $settings["mpcommentsstatusenabled"] == "1" ? (int) $mybb->input["isprivate"] : 0;
+		$isprivate = $mybb->get_input('isprivate', 1);
+		if(!in_array($isprivate, array(0, 1)) || !$settings["mpcommentsstatusenabled"])
+		{
+			$isprivate = 0;
+		}
 		
 		if(my_strlen(trim($message)) < $settings["mpcommentsminlength"] || my_strlen($message) > $settings["mpcommentsmaxlength"]) {
 			$result->error = true;
@@ -1262,16 +1271,16 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key? */
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
-		if(! isset($mybb->input["cid"]) || ! is_numeric($mybb->input["cid"])) {
+		if(!$mybb->get_input('cid', 1)) {
 			return;
 		}
 		
 		MyProfileUtils::lang_load_myprofile();
 		
-		$result = $this->approve_comment((int) $mybb->input["cid"]);
+		$result = $this->approve_comment($mybb->get_input('cid', 1));
 		MyProfileUtils::output_json($result);
 	}
 	
@@ -1324,7 +1333,7 @@ if(use_xmlhttprequest == "1")
 			$comment_private = $lang->mp_comments_comment_private;
 		}
 		
-		if(isset($mybb->input["highlight"]) && $mybb->input["highlight"] == $comment["cid"]) {
+		if($mybb->get_input('highlight', 1) == $comment["cid"]) {
 			$trow_class = "trow_selected";
 		}
 		
@@ -1489,15 +1498,15 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key? */
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
 		MyProfileUtils::lang_load_myprofile();
 		
-		if(! isset($mybb->input["cid"]) || ! is_numeric($mybb->input["cid"])) {
+		if(!$mybb->get_input('cid', 1)) {
 			return;
 		}
-		$result = $this->delete_comment((int) $mybb->input["cid"]);
+		$result = $this->delete_comment($mybb->get_input('cid', 1));
 		MyProfileUtils::output_json($result);
 	}
 	
@@ -1506,7 +1515,7 @@ if(use_xmlhttprequest == "1")
 		if($mybb->request_method != "post") {
 			return;
 		}
-		if(! isset($mybb->input["my_post_key"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
 		if(! $this->can_manage_comments()) {
@@ -1518,15 +1527,15 @@ if(use_xmlhttprequest == "1")
 		$result = new stdClass();
 		$result->error = false;
 		$result->error_message = "";
-		
-		if(! isset($mybb->input["memberuid"]) || ! is_numeric($mybb->input["memberuid"])) {
+
+		$memberuid = $mybb->get_input('memberuid', 1);
+		if(!$memberuid) {
 			$result->error = true;
 			$result->error_message = $lang->mp_profile_comments_no_user_selected;
 			
 			MyProfileUtils::output_json($result);
 		}
 		
-		$memberuid = (int) $mybb->input["memberuid"];
 		$query = $db->delete_query("myprofilecomments", "userid='{$memberuid}'");
 		MyProfileUtils::output_json($result);
 	}
@@ -1636,8 +1645,8 @@ if(use_xmlhttprequest == "1")
 			"userid" => (int) $user["uid"],
 			"cuid" => (int) $mybb->user["uid"],
 			"message" => $db->escape_string($message),
-			"approved" => $approved,
-			"isprivate" => $isprivate,
+			"approved" => (int)$approved,
+			"isprivate" => (int)$isprivate,
 			"time" => TIME_NOW
 		);
 		$cid = $db->insert_query("myprofilecomments", $insert_array);
@@ -1667,10 +1676,10 @@ if(use_xmlhttprequest == "1")
 		
 		$update_array = array(
 			"message" => $db->escape_string($message),
-			"approved" => $approved,
-			"isprivate" => $isprivate
+			"approved" => (int)$approved,
+			"isprivate" => (int)$isprivate
 		);
-		$cid = $db->update_query("myprofilecomments", $update_array, "cid='{$cid}'", "1");
+		$cid = $db->update_query("myprofilecomments", $update_array, "cid='{$cid}'", 1);
 		
 		// all's well that ends well
 		return $result;
@@ -1683,7 +1692,7 @@ if(use_xmlhttprequest == "1")
 			$update_array = array(
 				"mpnewcomments" => $user["mpnewcomments"] + 1
 			);
-			$db->update_query("users", $update_array, "uid='{$user['uid']}'", "1");
+			$db->update_query("users", $update_array, "uid='{$user['uid']}'", 1);
 			$user["mpnewcomments"]++;
 		}
 		/* if the admin choosed myalerts and it exists */
@@ -1743,15 +1752,15 @@ if(use_xmlhttprequest == "1")
 		}
 		
 		$update_array = array(
-			"approved" => "1"
+			"approved" => 1
 		);
-		$db->update_query("myprofilecomments", $update_array, "cid='{$cid}'", "1");
+		$db->update_query("myprofilecomments", $update_array, "cid='{$cid}'", 1);
 		return $result;
 	}
 	
 	public function misc_start() {
 		global $mybb, $settings;
-		if(! isset($mybb->input["action"]) || ! is_string($mybb->input["action"])) {
+		if(!$mybb->get_input('action')) {
 			return;
 		}
 		/* is ajax activated? */
@@ -1760,7 +1769,7 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		*/
-		switch($mybb->input["action"]) {
+		switch($mybb->get_input('action') {
 			case "comments-add" :
 				$this->misc_comments_add();
 			break;
@@ -1792,15 +1801,14 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key ? */
-		verify_post_check($mybb->input["my_post_key"]);
+		verify_post_check($mybb->get_input('my_post_key'));
 
 		/* have we provided all the necessary fields ? With the appropriate types ? */
-		if(! isset($mybb->input["message"], $mybb->input["memberuid"])
-			|| ! is_string($mybb->input["message"]) || ! is_numeric($mybb->input["memberuid"])) {
+		if(!$mybb->get_input('message') || !$mybb->get_input('memberuid', 1)) {
 			return;
 		}
 		MyProfileUtils::lang_load_myprofile();
-		$memberuid = (int) $mybb->input["memberuid"];
+		$memberuid = $mybb->get_input('memberuid', 1);
 		$memprofile = get_user($memberuid);
 		
 		$error_message = "";
@@ -1810,9 +1818,13 @@ if(use_xmlhttprequest == "1")
 			$this->redirect($memberuid, $error_message);
 		}
 		
-		$message = $mybb->input["message"];
+		$message = $mybb->get_input('message');
 		/* is the comment private? is the sneaky user trying to set it to private while the private status is globally disabled? */
-		$isprivate = isset($mybb->input["isprivate"]) && in_array($mybb->input["isprivate"], array("0", "1")) && $settings["mpcommentsstatusenabled"] == "1" ? (int) $mybb->input["isprivate"] : 0;
+		$isprivate = $mybb->get_input('isprivate', 1);
+		if(!in_array($isprivate, array(0, 1)) || !$settings["mpcommentsstatusenabled"])
+		{
+			$isprivate = 0;
+		}
 		/* are we respecting the comment lengths? */
 		if(my_strlen(trim($message)) < $settings["mpcommentsminlength"] || my_strlen($message) > $settings["mpcommentsmaxlength"]) {
 			$error_message = $lang->sprintf($lang->mp_comments_comment_wrong_length, $settings["mpcommentsminlength"], $settings["mpcommentsmaxlength"]);
@@ -1836,17 +1848,18 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key? */
-		verify_post_check($mybb->input["my_post_key"]);
-		if(! isset($mybb->input["cid"], $mybb->input["memberuid"]) || ! is_numeric($mybb->input["cid"]) || ! is_numeric($mybb->input["memberuid"])) {
+		verify_post_check($mybb->get_input('my_post_key'));
+		$memberuid = $mybb->get_input('memberuid', 1);
+		if(!$mybb->get_input('cid', 1) || !$memberuid) {
 			return;
 		}
 		MyProfileUtils::lang_load_myprofile();
-		$result = $this->delete_comment((int) $mybb->input["cid"]);
+		$result = $this->delete_comment($mybb->get_input('cid', 1));
 		if($result->error) {
-			$this->redirect($mybb->input["memberuid"], $result->error_message);
+			$this->redirect($memberuid, $result->error_message);
 		}
 		else {
-			$this->redirect($mybb->input["memberuid"], $lang->mp_comments_comment_deleted_successfully);
+			$this->redirect($memberuid, $lang->mp_comments_comment_deleted_successfully);
 		}
 	}
 	
@@ -1855,8 +1868,9 @@ if(use_xmlhttprequest == "1")
 		if($mybb->request_method != "get") {
 			return;
 		}
-		verify_post_check($mybb->input["my_post_key"]);
-		if(! isset($mybb->input["memberuid"]) || ! is_numeric($mybb->input["memberuid"])) {
+		verify_post_check($mybb->get_input('my_post_key'));
+		$memberuid = $mybb->get_input('memberuid', 1);
+		if(!$memberuid) {
 			return;
 		}
 		if(! $this->can_manage_comments()) {
@@ -1864,7 +1878,7 @@ if(use_xmlhttprequest == "1")
 		}
 		else {
 			MyProfileUtils::lang_load_myprofile();
-			$this->redirect((int) $mybb->input["memberuid"], $lang->mp_comments_comments_deleted_successfully);
+			$this->redirect($memberuid, $lang->mp_comments_comments_deleted_successfully);
 		}
 	}
 	
@@ -1875,16 +1889,16 @@ if(use_xmlhttprequest == "1")
 			return;
 		}
 		/* valid post key? */
-		verify_post_check($mybb->input["my_post_key"]);
-		if(! isset($mybb->input["cid"], $mybb->input["memberuid"]) || ! is_numeric($mybb->input["cid"]) || ! is_numeric($mybb->input["memberuid"])) {
+		verify_post_check($mybb->get_input('my_post_key'));
+		$memberuid = $mybb->get_input('memberuid', 1);
+		$cid = $mybb->get_input('cid', 1);
+		if(!$cid || !$memberuid) {
 			return;
 		}
 		
 		MyProfileUtils::lang_load_myprofile();
 		
-		$memberuid = (int) $mybb->input["memberuid"];
-		
-		$result = $this->approve_comment((int) $mybb->input["cid"]);
+		$result = $this->approve_comment($cid);
 		
 		if($result->error) {
 			$this->redirect($memberuid, $result->error_message);
@@ -1896,13 +1910,15 @@ if(use_xmlhttprequest == "1")
 	
 	public function misc_comments_edit() {
 		global $mybb, $settings, $lang, $theme, $templates, $db;
-		if(! isset($mybb->input["cid"], $mybb->input["my_post_key"], $mybb->input["memberuid"]) || ! is_numeric($mybb->input["cid"]) || ! is_numeric($mybb->input["memberuid"]) || ! is_string($mybb->input["my_post_key"])) {
+		$memberuid = $mybb->get_input('memberuid', 1);
+		$cid = $mybb->get_input('cid', 1);
+		if(!$cid || !$memberuid || !verify_post_check($mybb->get_input('my_post_key'))) {
 			return ;
 		}
 		
-		$memprofile = get_user($mybb->input["memberuid"]);
+		$memprofile = get_user($memberuid);
 		
-		$comment = $this->comment_retrieve_from_db((int) $mybb->input["cid"], $memprofile);
+		$comment = $this->comment_retrieve_from_db($cid, $memprofile);
 		
 		MyProfileUtils::lang_load_myprofile();
 		if(empty($comment) || ! $this->can_edit_comment($comment)) {
@@ -1929,15 +1945,16 @@ if(use_xmlhttprequest == "1")
 	
 	public function misc_comments_do_edit() {
 		global $mybb, $lang;
-		if(! isset($mybb->input["my_post_key"], $mybb->input["page"], $mybb->input["memberuid"]) || ! is_string($mybb->input["my_post_key"]) ||
-			! is_numeric($mybb->input["page"]) || ! is_numeric($mybb->input["memberuid"])) {
+		$page = $mybb->get_input('page', 1);
+		$memberuid = $mybb->get_input('memberuid', 1);
+		if(!$memberuid) {
 			return;
 		}
-		if(! verify_post_check($mybb->input["my_post_key"], true)) {
+		if(!verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
 		MyProfileUtils::lang_load_myprofile();
-		$this->redirect((int) $mybb->input["memberuid"], $lang->mp_comments_comment_edited_successfully, "&page={$mybb->input['page']}");
+		$this->redirect($memberuid, $lang->mp_comments_comment_edited_successfully, "&page={$page}");
 	}
 	
 	public function redirect($uid, $message, $supplement = "") {
@@ -1952,8 +1969,12 @@ if(use_xmlhttprequest == "1")
 		}
 		
 		MyProfileUtils::lang_load_myprofile();
-		$page = isset($mybb->input["page"]) && is_numeric($mybb->input["page"]) && $mybb->input["page"] >= 1 ? (int) $mybb->input["page"] : 1;
-		
+		$page = $mybb->get_input('page', 1);
+		if(!$page || $page < 1)
+		{
+			$page = 1;
+		}
+
 		$comments_memberuid = $memprofile["uid"];
 		$comments_ajax = $settings["mpcommentsajaxenabled"] == "1" ? 1 : 0;
 		$comments_minlength = $settings["mpcommentsminlength"];
@@ -2029,10 +2050,10 @@ if(use_xmlhttprequest == "1")
 			MyProfileUtils::lang_load_config_myprofile();
 			
 			$mp_options = array();
-			$mp_options[] = $form->generate_check_box("canmanagecomments", 1, $lang->mp_options_can_manage_comments, array('checked' => $mybb->input["canmanagecomments"]));
-			$mp_options[] = $form->generate_check_box("cansendcomments", 1, $lang->mp_options_can_send_comments, array('checked' => $mybb->input["cansendcomments"]));
-			$mp_options[] = $form->generate_check_box("caneditowncomments", 1, $lang->mp_options_can_edit_own_comments, array('checked' => $mybb->input["caneditowncomments"]));
-			$mp_options[] = $form->generate_check_box("candeleteowncomments", 1, $lang->mp_options_can_delete_own_comments, array('checked' => $mybb->input["candeleteowncomments"]));
+			$mp_options[] = $form->generate_check_box("canmanagecomments", 1, $lang->mp_options_can_manage_comments, array('checked' => $mybb->get_input('canmanagecomments', 1)));
+			$mp_options[] = $form->generate_check_box("cansendcomments", 1, $lang->mp_options_can_send_comments, array('checked' => $mybb->get_input('cansendcomments', 1)));
+			$mp_options[] = $form->generate_check_box("caneditowncomments", 1, $lang->mp_options_can_edit_own_comments, array('checked' => $mybb->get_input('caneditowncomments', 1)));
+			$mp_options[] = $form->generate_check_box("candeleteowncomments", 1, $lang->mp_options_can_delete_own_comments, array('checked' => $mybb->get_input('candeleteowncomments', 1)));
             $mp_options[] = $lang->mp_options_comments_per_day . "<br />" . $form->generate_text_box("commentsperday", $usergroup['commentsperday']);
 			
 			$form_container->output_row($lang->mp_myprofile, '', '<div class="group_settings_bit">'.implode('</div><div class="group_settings_bit">', $mp_options).'</div>');
@@ -2042,11 +2063,11 @@ if(use_xmlhttprequest == "1")
 	public function admin_user_groups_edit_commit() {
 		global $updated_group, $mybb;
 
-		$updated_group['canmanagecomments'] = $mybb->input['canmanagecomments'];
-		$updated_group['cansendcomments'] = $mybb->input['cansendcomments'];
-		$updated_group['caneditowncomments'] = $mybb->input['caneditowncomments'];
-		$updated_group['candeleteowncomments'] = $mybb->input['candeleteowncomments'];
-        $updated_group['commentsperday'] = (int) $mybb->input['commentsperday'];
+		$updated_group['canmanagecomments'] = $mybb->get_input('canmanagecomments', 1);
+		$updated_group['cansendcomments'] = $mybb->get_input('cansendcomments', 1);
+		$updated_group['caneditowncomments'] = $mybb->get_input('caneditowncomments', 1);
+		$updated_group['candeleteowncomments'] = $mybb->get_input('candeleteowncomments', 1);
+        $updated_group['commentsperday'] = $mybb->get_input('commentsperday', 1);
 	}
 	
 	public function report_start() {
@@ -2064,11 +2085,11 @@ if(use_xmlhttprequest == "1")
 	public function report_type() {
 		global $mybb, $db, $lang, $report_type, $report_type_db, $verified, $id, $id2, $id3, $error;
 		if($report_type == 'comment') {
-			if(! isset($mybb->input["pid"]) || ! is_numeric($mybb->input["pid"])) {
+			$cid = $mybb->get_input('pid', 1);
+			if(!$cid) {
 				$error = $lang->error_invalid_report;
 			}
 			else {
-				$cid = (int) $mybb->input["pid"];
 				$query = $db->simple_select("myprofilecomments", "*", "cid = '".$cid."'");
 				if(! $db->num_rows($query)) {
 					$error = $lang->error_invalid_report;
@@ -2102,44 +2123,39 @@ if(use_xmlhttprequest == "1")
 	public function usercp_do_options_end() {
 		global $mybb, $db;
 		
+		$update_array = array(
+			'mpcommentsopen' => $mybb->get_input('mpcommentsopen', 1),
+			'mpwhocancomment' => $mybb->get_input('mpwhocancomment', 1),
+			'mpcommentnotification' => $mybb->get_input('mpcommentnotification', 1),
+			'mpcommentsapprove' => $mybb->get_input('mpcommentsapprove', 1)
+		);
+
 		// basically, if the my profile params are submitted, and they are equivalent to the old ones, return.
-		if(isset($mybb->input["mpcommentsopen"]) && $mybb->user["mpcommentsopen"] == $mybb->input["mpcommentsopen"]
-			&& isset($mybb->input["mpwhocancomment"]) && $mybb->user["mpwhocancomment"] == $mybb->input["mpwhocancomment"]
-			&& isset($mybb->input["mpcommentnotification"]) && $mybb->user["mpcommentnotification"] == $mybb->input["mpcommentnotification"]
-			&& isset($mybb->input["mpcommentsapprove"]) && $mybb->user["mpcommentsapprove"] == $mybb->input["mpcommentsapprove"]) {
+		if($mybb->user["mpcommentsopen"] == $update_array['mpcommentsopen']
+			&& $mybb->user["mpwhocancomment"] == $update_array['mpwhocancomment']
+			&& $mybb->user["mpcommentnotification"] == $update_array['mpcommentnotification']
+			&& $mybb->user["mpcommentsapprove"] == $update_array['mpcommentsapprove']) {
 				return;
 		}
 		
-		$update_array = array();
 		// in_array is also a great way to escape strings without calling the database :D
-		if(isset($mybb->input["mpcommentsopen"]) && in_array($mybb->input["mpcommentsopen"], array("0", "1"))) {
-			$update_array["mpcommentsopen"] = $mybb->input["mpcommentsopen"];
-		}
-		elseif(! isset($mybb->input["mpcommentsopen"])) {
-			$update_array["mpcommentsopen"] = "0";
+		if(!in_array($update_array['mpcommentsopen'], array(0, 1))) {
+			$update_array["mpcommentsopen"] = 0;
 		}
 		
-		if(in_array($mybb->input["mpwhocancomment"], array("0", "1", "2"))) {
-			$update_array["mpwhocancomment"] = $mybb->input["mpwhocancomment"];
+		if(!in_array($update_array['mpwhocancomment'], array(0, 1, 2))) {
+			$update_array["mpwhocancomment"] = 0
 		}
 		
-		if(isset($mybb->input["mpcommentnotification"]) && in_array($mybb->input["mpcommentnotification"], array("0", "1"))) {
-			$update_array["mpcommentnotification"] = $mybb->input["mpcommentnotification"];
-		}
-		elseif(! isset($mybb->input["mpcommentnotification"])) {
-			$update_array["mpcommentnotification"] = "0";
+		if(!in_array($update_array['mpcommentnotification'], array(0, 1))) {
+			$update_array["mpcommentnotification"] = 0;
 		}
 		
-		if(isset($mybb->input["mpcommentsapprove"]) && in_array($mybb->input["mpcommentsapprove"], array("0", "1"))) {
-			$update_array["mpcommentsapprove"] = $mybb->input["mpcommentsapprove"];
+		if(!in_array($update_array['mpcommentsapprove'], array(0, 1))) {
+			$update_array["mpcommentsapprove"] = 0;
 		}
-		elseif(! isset($mybb->input["mpcommentsapprove"])) {
-			$update_array["mpcommentsapprove"] = "0";
-		}
-		
-		if(count($update_array) > 0) {
-			$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", "1");
-		}
+
+		$db->update_query("users", $update_array, "uid='{$mybb->user['uid']}'", 1);
 	}
 	
 	public function usercp_options_start() {
@@ -2164,8 +2180,8 @@ if(use_xmlhttprequest == "1")
 	
 	public function modcp_start() {
 		global $mybb, $lang, $theme, $settings, $templates, $headerinclude, $header, $modcp_nav;
-		if(isset($mybb->input["action"]) && is_string($mybb->input["action"])) {
-			$action = $mybb->input["action"];
+		if($mybb->get_input('action') {
+			$action = $mybb->get_input('action';
 			if($action == "myprofilecomments") {
 				if($mybb->usergroup["canmanagecomments"] == "0") {
 					error_no_permission();
@@ -2244,12 +2260,10 @@ if(use_xmlhttprequest == "1")
 		return $result;
 	}
 
-    public function tools_permissionviewer_general_zero(&$groupzerogreater)
-    {
+    public function tools_permissionviewer_general_zero(&$groupzerogreater) {
         $groupzerogreater[] = "commentsperday";
     }
 
-	
 	private function __construct() {
 		
 	}

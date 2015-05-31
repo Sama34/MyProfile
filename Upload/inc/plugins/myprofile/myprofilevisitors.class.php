@@ -205,8 +205,8 @@ $templates["myprofile_visitor_count"] = '<tr>
 			else {
 				// insert
 				$insert_array = array(
-					"uid" => $db->escape_string($memprofile['uid']),
-					"vuid" => $db->escape_string($mybb->user['uid']),
+					"uid" => (int)$memprofile['uid'],
+					"vuid" => (int)$mybb->user['uid'],
 					"time" => TIME_NOW
 				);
 				$db->insert_query("myprofilevisitors", $insert_array);
@@ -220,8 +220,7 @@ $templates["myprofile_visitor_count"] = '<tr>
                 if(!isset($mybb->cookies[$cookiekey]) && $memprofile['uid'] != $mybb->user['uid'])
                 {
                     // update the view count
-                    $visitcount = $memprofile['viewcount'] + 1;
-                    $db->write_query("UPDATE " . TABLE_PREFIX . "users SET viewcount=$visitcount WHERE uid=" . $memprofile['uid']);
+					$db->update_query('users', array('viewcount' => '`viewcount`+1'), "uid='{$memprofile['uid']}'", '', true);
                 }
                 my_setcookie($cookiekey, 1, 300); // 5 minute delay should be adequate
                 eval("\$profilevisits = \"".$templates->get("myprofile_visitor_count")."\";");

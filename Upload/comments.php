@@ -7,12 +7,12 @@ if(!$db->table_exists("myprofilecomments") || !$mybb->settings['mpcommentsenable
 {
     error_no_permission();
 }
-if(!$mybb->input['uid1'] || !$mybb->input['uid2'])
+$uid1 = $mybb->get_input('uid1', 1);
+$uid2 = $mybb->get_input('uid2', 1);
+if(!$uid1 || !$uid2)
 {
     error_no_permission();
 }
-$uid1 = (int) $mybb->input['uid1'];
-$uid2 = (int) $mybb->input['uid2'];
 $approved = 0;
 if($mybb->usergroup['canmanagecomments'])
 {
@@ -40,15 +40,8 @@ if($total == 0)
     output_page($commentpage);
 }
 // Calculate our current page
-if($mybb->input['page'])
-{
-    $page = (int) $mybb->input['page'];
-}
-else
-{
-    $page = 1;
-}
-if($page < 1)
+$page = $mybb->get_input('page', 1);
+if(!$page || $page < 1)
 {
     $page = 1;
 }
@@ -111,4 +104,3 @@ while($comment = $db->fetch_array($query))
 }
 eval("\$commentpage = \"".$templates->get("myprofile_comments_page")."\";");
 output_page($commentpage);
-?>

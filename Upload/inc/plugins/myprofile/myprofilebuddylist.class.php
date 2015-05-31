@@ -164,19 +164,9 @@ class MyProfileBuddyList {
 	}
 	
 	public function xmlhttp() {
-		global $mybb, $settings;
-		if($settings["mpbuddylistenabled"] != "1") {
-			return;
-		}
-		if(isset($mybb->input["action"]) && is_string($mybb->input["action"])) {
-			switch($mybb->input["action"]) {
-				case "buddylist-load-page" :
-					$this->xmlhttp_buddylist_page();
-				break;
-				default :
-					return;
-				break;
-			}
+		global $mybb;
+		if($mybb->settings["mpbuddylistenabled"] && $mybb->get_input('action') == 'buddylist-load-page') {
+			$this->xmlhttp_buddylist_page();
 		}
 	}
 	
@@ -186,15 +176,18 @@ class MyProfileBuddyList {
 		$object = new stdClass();
 		$object->error = false;
 		$object->error_message = "";
-		
-		if(! isset($mybb->input["my_post_key"], $mybb->input["memberuid"]) || ! is_string($mybb->input["my_post_key"]) || ! verify_post_check($mybb->input["my_post_key"], true)
-			|| ! is_numeric($mybb->input["memberuid"])) {
+
+		$memberuid = $mybb->get_input('memberuid', 1);
+
+		if(!$memberuid || !verify_post_check($mybb->get_input('my_post_key'), true)) {
 			return;
 		}
-		
-		
-		$page = isset($mybb->input["page"]) && is_numeric($mybb->input["page"]) && $mybb->input["page"] >= 1 ? (int) $mybb->input["page"] : 1;
-		$memberuid = (int) $mybb->input["memberuid"];
+
+		$page = $mybb->get_input('page', 1);
+		if(!$page || $page < 1)
+		{
+			$page = 1;
+		}
 		$memprofile = get_user($memberuid);
 		
 		if(empty($memprofile)) {

@@ -48,7 +48,6 @@ function myprofile_info() {
 		"authorsite" => "http://mohamedbenjelloun.com/",
 		"version" => "0.5",
 		"compatibility" => "18*",
-		"guid" => "", // bye bye 1.6 :D
 		"language_file" => "config_myprofile",
 		"language_prefix" => "mp_options_",
 		"codename" => "myprofile"
@@ -79,7 +78,7 @@ function myprofile_uninstall() {
 
 	if($mybb->request_method == 'post')
 	{
-		if(!verify_post_check($mybb->input['my_post_key']))
+		if(!verify_post_check($mybb->get_input('my_post_key')))
 		{
 			global $lang;
 

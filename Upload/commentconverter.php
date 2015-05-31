@@ -41,14 +41,7 @@ $countquery = $db->simple_select("profilecomments", "COUNT(mid) as total");
 $total = $db->fetch_field($countquery, "total");
 // 500 per page should be sufficient to avoid time outs.
 $perpage = 500;
-if($mybb->input['page'])
-{
-    $page = intval($mybb->input['page']);
-}
-else
-{
-    $page = 1;
-}
+$page = $mybb->get_input('page', 1);
 if(!$page || $page < 0)
 {
     $page = 1;
@@ -81,4 +74,3 @@ $remaining = $total - $perpage;
 $url = $_SERVER['PHP_SELF'] . "?page=" . $nextpage;
 echo "Inserted " . $commentsinserted . " comments.  There are " . $remaining . " comments remaining.
 <meta http-equiv=\"refresh\" content=\"2;URL={$url}\" />";
-?>
